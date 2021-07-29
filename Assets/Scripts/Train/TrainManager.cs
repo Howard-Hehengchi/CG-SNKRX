@@ -7,9 +7,18 @@ using UnityEngine;
 /// </summary>
 public class TrainManager : MonoBehaviour
 {
+    public static TrainManager Instance
+    {
+        get
+        {
+            return instance;
+        }
+    }
+    private static TrainManager instance;
+
     [Header("外部引用")]
-    [Tooltip("用于通知车厢信息显示更新"), SerializeField]
-    private UIManager uiManager;
+    //[Tooltip("用于通知车厢信息显示更新"), SerializeField]
+    //private UIManager uiManager;
 
     [SerializeField, Tooltip("用于获取节点具体位置和路线规划")]
     private RouteManager routeManager;
@@ -49,46 +58,29 @@ public class TrainManager : MonoBehaviour
     public int unitMaxHealth = 5;
     public List<Color> unitColors;
 
-    private void Start()
+    //private void Start()
+    //{
+    //    RoundStart();
+    //}
+
+    private void OnEnable()
+    {
+        RoundStart();
+    }
+
+    public void RoundStart()
     {
         trainUnits = new List<Transform>();
         //deadUnits = new List<Transform>();
         aliveIndices = new List<int>();
         unitColors = new List<Color>();
-        for (int i = 0;i < unitCount; i++)
+        for (int i = 0; i < unitCount; i++)
         {
             aliveIndices.Add(i);
             unitColors.Add(Random.ColorHSV());
         }
 
-        
-        StartCoroutine(InstantiateTrain());
-
-        //初始化路线，先设定好两个初始节点
-        pointIndices = new List<int>
-        {
-            0, 1
-        };
-    }
-
-    /// <summary>
-    /// 生成列车各车厢
-    /// </summary>
-    /// <returns></returns>
-    private IEnumerator InstantiateTrain()
-    {
-        //等到321倒计时结束后再生成
-        //while(GameManager.Instance.roundStart == false)
-        //{
-        //    yield return null;
-        //}
-
-        //为防止车厢之间间距不均衡，等待start结束后再生成
-        //yield return new WaitForEndOfFrame();
-        yield return new WaitForSeconds(0.5f);
-
         Vector3 initialPos = routeManager.GetPointPosition(0);
-
         for (int i = 0; i < unitCount; i++)
         {
             //生成单个车厢，并初始化
@@ -110,8 +102,43 @@ public class TrainManager : MonoBehaviour
             Transform unitTF = unit.transform;
             trainUnits.Add(unitTF);
 
+            //先隐藏车厢
+            unit.gameObject.SetActive(false);
+        }
+
+        StartCoroutine(InstantiateTrain(initialPos));
+
+        //初始化路线，先设定好两个初始节点
+        pointIndices = new List<int>
+        {
+            0, 1
+        };
+    }
+
+    /// <summary>
+    /// 生成列车各车厢
+    /// </summary>
+    /// <param name="initialPos">车厢生成点</param>
+    /// <returns></returns>
+    private IEnumerator InstantiateTrain(Vector3 initialPos)
+    {
+        //等到321倒计时结束后再生成
+        //while(GameManager.Instance.roundStart == false)
+        //{
+        //    yield return null;
+        //}
+
+        //为防止车厢之间间距不均衡，等待start结束后再生成
+        //yield return new WaitForEndOfFrame();
+        yield return new WaitForSeconds(0.5f);
+
+        for (int i = 0; i < unitCount; i++)
+        {
+            Transform unitTF = trainUnits[i];
+            unitTF.gameObject.SetActive(true);
+
             //等待至此车厢走出一段距离后再生成下一节车厢
-            while(Vector3.Distance(unitTF.position, initialPos) <= unitRadius + unitRadius + unitInterval)
+            while (Vector3.Distance(unitTF.position, initialPos) <= unitRadius + unitRadius + unitInterval)
             {
                 yield return null;
             }
@@ -127,15 +154,20 @@ public class TrainManager : MonoBehaviour
         //Time.timeScale = 0.1f;
         int deadUnitIndex = trainUnits.IndexOf(deadUnitTF);
         aliveIndices.Remove(deadUnitIndex);
-
-        //由于即时重排容易出BUG（不知道），因此采用协程延时重排
-        StartCoroutine(StartRearrangement(deadUnitIndex));
-        //for (int i = unitCount - 2; i >= deadUnitIndex; i--)
-        //{
-        //    UnitMovementInfo info = trainUnits[i].GetComponent<UnitMove>().GetInfo();
-        //    trainUnits[i + 1].GetComponent<UnitMove>().SetInfo(info);
-        //}
-
+        if(aliveIndices.Count == 0)
+        {
+            GameManager.Instance.GameEnd(false);
+        }
+        else
+        {
+            //由于即时重排容易出BUG（不知道），因此采用协程延时重排
+            StartCoroutine(StartRearrangement(deadUnitIndex));
+            //for (int i = unitCount - 2; i >= deadUnitIndex; i--)
+            //{
+            //    UnitMovementInfo info = trainUnits[i].GetComponent<UnitMove>().GetInfo();
+            //    trainUnits[i + 1].GetComponent<UnitMove>().SetInfo(info);
+            //}
+        }
     }
 
     /// <summary>
@@ -165,7 +197,7 @@ public class TrainManager : MonoBehaviour
     private void UnitHealthChange(UnitInfo unit, int currentHealth)
     {
         int index = trainUnits.IndexOf(unit.transform);
-        uiManager.ChangeUnitHealthInfo(index, currentHealth);
+        UIManager.Instance.ChangeUnitHealthInfo(index, currentHealth);
     }
 
     private void Update()
@@ -234,8 +266,15 @@ public class TrainManager : MonoBehaviour
     /// <returns>在现存车厢中随机的一个引用</returns>
     public int GetRandomIndexOfUnits()
     {
-        int randomIndex = aliveIndices[Random.Range(0, aliveIndices.Count)];
-        return randomIndex;
+        if (GameManager.roundEnd)
+        {
+            return -1;
+        }
+        else
+        {
+            int randomIndex = aliveIndices[Random.Range(0, aliveIndices.Count)];
+            return randomIndex;
+        }
     }
 
     /// <summary>

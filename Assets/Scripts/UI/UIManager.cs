@@ -5,6 +5,15 @@ using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
+    public static UIManager Instance
+    {
+        get
+        {
+            return instance;
+        }
+    }
+    private static UIManager instance;
+
     [Header("外部引用")]
     [Tooltip("用于获取列车车厢生命值信息"), SerializeField]
     private TrainManager train;
@@ -16,13 +25,31 @@ public class UIManager : MonoBehaviour
     [Tooltip("左下角车厢信息显示管理，每单元代表一个车厢（包括车厢图像及生命值显示）"), SerializeField]
     private Transform[] unitInfoIcons;
 
+    [Tooltip("结束文本显示面板"), SerializeField]
+    private EndPanel endPanel;
+
     [Header("开始文本显示参数")]
     [Tooltip("开始文本每次显示多久"), SerializeField, Range(0f, 1f)]
     private float startHintTextShowTime = 1f;
     [Tooltip("开始文本每次隐藏多久"), SerializeField, Range(0f, 0.5f)]
     private float startHintTextHideTime = 0.3f;
 
-    private void Start()
+    private void Awake()
+    {
+        instance = this;
+    }
+
+    //private void Start()
+    //{
+    //    RoundStart();
+    //}
+
+    private void OnEnable()
+    {
+        RoundStart();
+    }
+
+    public void RoundStart()
     {
         startHintText.gameObject.SetActive(false);
 
@@ -30,7 +57,7 @@ public class UIManager : MonoBehaviour
 
         //设置生命值文本数值
         //目前还是统一采用最大生命值
-        for(int i = 0; i < trainUnitCount; i++)
+        for (int i = 0; i < trainUnitCount; i++)
         {
             unitInfoIcons[i].gameObject.SetActive(true);
             Image image = unitInfoIcons[i].GetComponentsInChildren<Image>()[1];
@@ -40,10 +67,12 @@ public class UIManager : MonoBehaviour
         }
 
         //根据车厢数量决定左下角车厢信息板块数量
-        for(int i = trainUnitCount; i <=5; i++)
+        for (int i = trainUnitCount; i <= 5; i++)
         {
             unitInfoIcons[i].gameObject.SetActive(false);
         }
+
+        endPanel.gameObject.SetActive(false);
 
         StartCoroutine(ShowStartHint());
     }
@@ -98,7 +127,7 @@ public class UIManager : MonoBehaviour
 
         //startHintText.gameObject.SetActive(false);
 
-        GameManager.Instance.roundStart = true;
+        GameManager.roundStart = true;
     }
 
     /// <summary>
@@ -109,5 +138,15 @@ public class UIManager : MonoBehaviour
     public void ChangeUnitHealthInfo(int index, int currentHealth)
     {
         unitInfoIcons[index].GetComponentInChildren<Text>().text = currentHealth.ToString();
+    }
+
+    /// <summary>
+    /// 游戏结束，显示信息
+    /// </summary>
+    /// <param name="success"></param>
+    public void ShowEndText(bool success)
+    {
+        endPanel.gameObject.SetActive(true);
+        endPanel.ShowEndText(success);
     }
 }

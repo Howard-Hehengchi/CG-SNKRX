@@ -96,10 +96,13 @@ public class EnemySpawner : MonoBehaviour
 
     private void OnEnemyDie(Enemy enemy)
     {
-        deadCount++;
-        if (deadCount == spawnCount)
+        if (enemies.Contains(enemy))
         {
-            onEnemyClear();
+            deadCount++;
+            if (deadCount == spawnCount)
+            {
+                onEnemyClear();
+            }
         }
     }
 }

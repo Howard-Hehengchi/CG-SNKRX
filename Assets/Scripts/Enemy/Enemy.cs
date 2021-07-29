@@ -45,6 +45,11 @@ public class Enemy : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (GameManager.roundEnd)
+        {
+            return;
+        }
+
         //if (canMove)
         //{
         Vector3 destination = train.GetTrainUnitPos(followIndex);

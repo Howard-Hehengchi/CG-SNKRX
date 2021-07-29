@@ -7,6 +7,15 @@ using UnityEngine;
 /// </summary>
 public class WaveManager : MonoBehaviour
 {
+    public static WaveManager Instance
+    {
+        get
+        {
+            return instance;
+        }
+    }
+    private static WaveManager instance;
+
     [Tooltip("总共怪物进攻的波数"), SerializeField, Range(0, 7)]
     private int waveCount = 4;
 
@@ -21,8 +30,24 @@ public class WaveManager : MonoBehaviour
     [Tooltip("当前波次已经清空的敌人生成器数量")]
     private int clearSpawnerCount = 0;
 
-    private void Start()
+    private void Awake()
     {
+        instance = this;
+    }
+
+    //private void Start()
+    //{
+    //    RoundStart();
+    //}
+
+    private void OnEnable()
+    {
+        RoundStart();
+    }
+
+    public void RoundStart()
+    {
+        currentWave = 0;
         StartCoroutine(StartFirstSpawn());
     }
 
@@ -33,7 +58,7 @@ public class WaveManager : MonoBehaviour
     private IEnumerator StartFirstSpawn()
     {
         //等待321倒计时结束再开始生成
-        while (!GameManager.Instance.roundStart)
+        while (!GameManager.roundStart)
         {
             yield return null;
         }
@@ -50,7 +75,7 @@ public class WaveManager : MonoBehaviour
         if(currentWave >= waveCount)
         {
             //TODO:这里进行结束操作
-            GameManager.Instance.GameEnd();
+            GameManager.Instance.GameEnd(true);
             return;
         }
 
