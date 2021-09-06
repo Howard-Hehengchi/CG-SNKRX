@@ -46,9 +46,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   train: {fileID: 0}
   enemyPrefab: {fileID: 967750287397025939, guid: 0e4b8f37238577d47aa2e99182a5d834, type: 3}
-  flashCount: 3
-  flashOnTime: 0.55
-  flashOffTime: 0.25
+  flashCount: 7
+  flashOnTime: 0.37
+  flashOffTime: 0.15
   spawnInterval: 0.679
 --- !u!1 &5923391352702984815
 GameObject:

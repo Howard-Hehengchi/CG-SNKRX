@@ -36,6 +36,7 @@ public class RoutePoint : MonoBehaviour
         }
     }
 
+    /*
     /// <summary>
     /// 拿到除了指定节点以外的所有相邻节点
     /// </summary>
@@ -53,5 +54,39 @@ public class RoutePoint : MonoBehaviour
         }
 
         return nextPoints.ToArray();
+    }*/
+
+    /// <summary>
+    /// 拿到与此节点相连的所有节点
+    /// </summary>
+    /// <returns>一个一维数组，装有所有相连节点</returns>
+    public RoutePoint[] GetNeighbors()
+    {
+        return adjacentPoints.ToArray();
+    }
+
+    /// <summary>
+    /// 拿到除了指定节点以外的相邻节点
+    /// </summary>
+    /// <param name="fromPoint">车厢从这个节点来，不需要考虑这个节点</param>
+    /// <param name="anotherPoint">如果此节点与三个节点相连，则应该还有一个节点</param>
+    /// <returns></returns>
+    public RoutePoint GetNextPoint(RoutePoint fromPoint, out RoutePoint anotherPoint)
+    {
+        List<RoutePoint> nextPoints = new List<RoutePoint>();
+        foreach (var point in adjacentPoints)
+        {
+            if (point != fromPoint)
+            {
+                nextPoints.Add(point);
+            }
+        }
+
+        anotherPoint = null;
+        if(nextPoints.Count > 1)
+        {
+            anotherPoint = nextPoints[1];
+        }
+        return nextPoints[0];
     }
 }

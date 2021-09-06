@@ -5,8 +5,8 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     [Header("外部引用")]
-    [Tooltip("为了给生成的敌人列车的引用"), SerializeField]
-    private TrainManager train;
+    //[Tooltip("为了给生成的敌人列车的引用"), SerializeField]
+    //private TrainManager train;
 
     [Tooltip("敌人预制体"), SerializeField]
     private Enemy enemyPrefab;
@@ -14,7 +14,7 @@ public class EnemySpawner : MonoBehaviour
     [Tooltip("敌人出现前的警示标识")]
     private GameObject sign;
     [Header("生成前警示")]
-    [Tooltip("警示标识闪烁几次"), SerializeField, Range(0, 5)]
+    [Tooltip("警示标识闪烁几次"), SerializeField, Range(0, 10)]
     private int flashCount = 3;
     [Tooltip("警示标识亮的时长"), SerializeField, Range(0f, 1f)]
     private float flashOnTime = 0.5f;
@@ -30,6 +30,7 @@ public class EnemySpawner : MonoBehaviour
 
     [Tooltip("生成的所有敌人的引用")]
     private List<Enemy> enemies;
+    private List<Enemy> deadEnemies;
 
     [Tooltip("本次生成的敌人数量")]
     private int spawnCount;
@@ -38,7 +39,6 @@ public class EnemySpawner : MonoBehaviour
 
     private void Start()
     {
-        enemies = new List<Enemy>();
         sign = transform.GetChild(0).gameObject;
         sign.SetActive(false);
     }
@@ -55,7 +55,7 @@ public class EnemySpawner : MonoBehaviour
     private System.Action onEnemyClear;
     public void SetOnEnemyClear(System.Action onEnemyClear)
     {
-        this.onEnemyClear += onEnemyClear;
+        this.onEnemyClear = onEnemyClear;
     }
 
     /// <summary>
@@ -65,7 +65,9 @@ public class EnemySpawner : MonoBehaviour
     public void Spawn(int enemyCount)
     {
         spawnCount = enemyCount;
+        enemies = new List<Enemy>();
         deadCount = 0;
+        deadEnemies = new List<Enemy>();
         StartCoroutine(SpawnEnemies(enemyCount));
     }
 
@@ -75,20 +77,30 @@ public class EnemySpawner : MonoBehaviour
     /// <returns></returns>
     private IEnumerator SpawnEnemies(int enemyCount)
     {
-        for(int i = 0; i < flashCount; i++)
+        int x = (int)(1f / flashOnTime);
+        float p = x * flashOffTime;
+
+        //for(int i = 0; i < flashCount; i++)
+        //{
+        //    sign.SetActive(true);
+        //    yield return new WaitForSeconds(flashOnTime);
+        //    sign.SetActive(false);
+        //    yield return new WaitForSeconds(flashOffTime);
+        //}
+        for(int i = x; i < flashCount + x; i++)
         {
             sign.SetActive(true);
-            yield return new WaitForSeconds(flashOnTime);
+            yield return new WaitForSeconds(1f / i);
             sign.SetActive(false);
-            yield return new WaitForSeconds(flashOffTime);
+            yield return new WaitForSeconds(p / i);
         }
 
 
         for(int i = 0; i < enemyCount; i++)
         {
             Enemy enemy = Instantiate(enemyPrefab, transform);
-            enemy.SetTrainManager(train);
-            enemy.SetOnDeath(OnEnemyDie);
+            //enemy.SetTrainManager(train);
+            enemy.AddOnDeath(OnEnemyDie);
             enemies.Add(enemy);
             yield return new WaitForSeconds(spawnInterval);
         }
@@ -98,10 +110,15 @@ public class EnemySpawner : MonoBehaviour
     {
         if (enemies.Contains(enemy))
         {
-            deadCount++;
-            if (deadCount == spawnCount)
+            enemies.Remove(enemy);
+            if (!deadEnemies.Contains(enemy))
             {
-                onEnemyClear();
+                deadEnemies.Add(enemy);
+                deadCount++;
+                if (deadCount == spawnCount)
+                {
+                    onEnemyClear();
+                }
             }
         }
     }

@@ -20,6 +20,9 @@ public class TrainManager : MonoBehaviour
     //[Tooltip("用于通知车厢信息显示更新"), SerializeField]
     //private UIManager uiManager;
 
+    [Tooltip("用于获取车厢实体"), SerializeField]
+    private UnitFactory unitFactory;
+
     [SerializeField, Tooltip("用于获取节点具体位置和路线规划")]
     private RouteManager routeManager;
 
@@ -34,8 +37,10 @@ public class TrainManager : MonoBehaviour
     private float unitRadius = 0.5f;
     [SerializeField, Tooltip("火车车厢间距，用于初始生成")]
     private float unitInterval = 0.05f;
-    [Tooltip("火车车厢数量"), Range(1, 6)]
-    public int unitCount = 3;
+    [SerializeField, Tooltip("火车每个车厢分别是什么，仅测试时配置")]
+    private List<UnitType> unitTypes;
+    [HideInInspector, Tooltip("火车车厢数量")]
+    public int unitCount;
 
     [HideInInspector, Tooltip("所有车厢的引用")]
     public List<Transform> trainUnits;
@@ -53,10 +58,16 @@ public class TrainManager : MonoBehaviour
     [Tooltip("加/减速的输入"), HideInInspector]
     public float verticalInput = 0f;
 
-    [Header("车厢参数")]
-    [Tooltip("各车厢的最大生命值"), Range(1, 6)]
-    public int unitMaxHealth = 5;
+    [HideInInspector, Tooltip("各车厢颜色，用于向UI提供显示信息")]
     public List<Color> unitColors;
+    [HideInInspector, Tooltip("各车厢生命值，用于向UI提供显示信息")]
+    public List<int> unitMaxHealths;
+
+    private void Awake()
+    {
+        instance = this;
+        unitCount = unitTypes.Count;
+    }
 
     //private void Start()
     //{
@@ -65,45 +76,66 @@ public class TrainManager : MonoBehaviour
 
     private void OnEnable()
     {
+        if(GameManager.train == null)
+        {
+            GameManager.train = unitTypes;
+        }
         RoundStart();
     }
 
+    /// <summary>
+    /// 回合开始，初始化列车信息
+    /// </summary>
     public void RoundStart()
     {
+        unitTypes = GameManager.train;
+        unitCount = unitTypes.Count;
+
         trainUnits = new List<Transform>();
         //deadUnits = new List<Transform>();
         aliveIndices = new List<int>();
         unitColors = new List<Color>();
-        for (int i = 0; i < unitCount; i++)
-        {
-            aliveIndices.Add(i);
-            unitColors.Add(Random.ColorHSV());
-        }
+        unitMaxHealths = new List<int>();
 
+        //考虑到初始生成点不一定是原点，为此专门记录位置
         Vector3 initialPos = routeManager.GetPointPosition(0);
+        //一个个车厢进行生成和初始化
         for (int i = 0; i < unitCount; i++)
         {
-            //生成单个车厢，并初始化
-            UnitMove unit = Instantiate(unitPrefab, initialPos, Quaternion.identity, transform);
-            unit.SetTrainManager(this);
-            //初始化车厢颜色
-            MeshRenderer renderer = unit.GetComponentInChildren<MeshRenderer>();
-            renderer.material.color = unitColors[i];
-            //初始化移动信息
-            UnitMovementInfo info = new UnitMovementInfo(routeManager.GetPointPosition(0), routeManager.GetPointPosition(1));
-            unit.SetInfo(info);
-            //初始化车厢信息
-            UnitInfo unitInfo = unit.GetComponent<UnitInfo>();
-            unitInfo.SetHealth(unitMaxHealth);
-            unitInfo.SetOnDeath(RearrangeUnits);
-            unitInfo.SetOnHurt(UnitHealthChange);
+            //记录存活车厢
+            aliveIndices.Add(i);
 
+            //生成单个车厢，并初始化
+            Unit unit = unitFactory.Get(unitTypes[i]);
             //记录车厢引用
             Transform unitTF = unit.transform;
             trainUnits.Add(unitTF);
+            //进行transform有关操作
+            unitTF.SetPositionAndRotation(initialPos, Quaternion.identity);
+            unitTF.SetParent(transform);
 
+            //初始化车厢颜色
+            MeshRenderer renderer = unit.GetComponentInChildren<MeshRenderer>();
+            renderer.material.color = unit.color;
+            unitColors.Add(unit.color);
+
+            //获取车厢生命值信息
+            unitMaxHealths.Add(unit.maxHealth);
+
+            //初始化车厢回调函数
+            //Unit unit = unitMove.GetComponent<Unit>();
+            unit.AddOnDeath(RearrangeUnits);
+            unit.AddOnHurt(UnitHealthChange);
+
+            //配置车厢运动脚本
+            UnitMove unitMove = unit.GetComponent<UnitMove>();
+            unitMove.SetTrainManager(this);
+            //初始化移动信息
+            UnitMovementInfo info = new UnitMovementInfo(routeManager.GetPointPosition(0), routeManager.GetPointPosition(1));
+            unitMove.SetInfo(info);
+            
             //先隐藏车厢
-            unit.gameObject.SetActive(false);
+            unitMove.gameObject.SetActive(false);
         }
 
         StartCoroutine(InstantiateTrain(initialPos));
@@ -130,8 +162,11 @@ public class TrainManager : MonoBehaviour
 
         //为防止车厢之间间距不均衡，等待start结束后再生成
         //yield return new WaitForEndOfFrame();
+
+        //延迟一点开始生成，不用等321倒计时之后再出现
         yield return new WaitForSeconds(0.5f);
 
+        //一个个显示车厢
         for (int i = 0; i < unitCount; i++)
         {
             Transform unitTF = trainUnits[i];
@@ -156,7 +191,7 @@ public class TrainManager : MonoBehaviour
         aliveIndices.Remove(deadUnitIndex);
         if(aliveIndices.Count == 0)
         {
-            GameManager.Instance.GameEnd(false);
+            GameManager.Instance.RoundFinish(false);
         }
         else
         {
@@ -194,7 +229,7 @@ public class TrainManager : MonoBehaviour
     /// </summary>
     /// <param name="unit"></param>
     /// <param name="currentHealth"></param>
-    private void UnitHealthChange(UnitInfo unit, int currentHealth)
+    private void UnitHealthChange(Unit unit, int currentHealth)
     {
         int index = trainUnits.IndexOf(unit.transform);
         UIManager.Instance.ChangeUnitHealthInfo(index, currentHealth);
@@ -282,11 +317,11 @@ public class TrainManager : MonoBehaviour
     /// </summary>
     /// <param name="index">指定车厢引用</param>
     /// <returns>指定车厢的信息</returns>
-    public UnitInfo GetUnitByIndex(int index)
+    public Unit GetUnitByIndex(int index)
     {
         CheckIndex(index);
 
-        return trainUnits[index].GetComponent<UnitInfo>();
+        return trainUnits[index].GetComponent<Unit>();
     }
 
     /// <summary>

@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
-[CustomEditor(typeof(RouteManager))]
+//[CustomEditor(typeof(RouteManager))]
 public class RouteGraphEditor : Editor
 {
+    /*
     public override void OnInspectorGUI()
     {
         RouteManager route = (RouteManager)target;
@@ -107,4 +108,5 @@ public class RouteGraphEditor : Editor
             //Repaint();
         }
     }
+    */
 }

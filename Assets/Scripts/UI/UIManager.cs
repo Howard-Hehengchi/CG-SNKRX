@@ -21,6 +21,12 @@ public class UIManager : MonoBehaviour
     [Header("UI组件")]
     [Tooltip("游戏开始时的提示文本"), SerializeField]
     private Text startHintText;
+    
+    [Tooltip("显示关卡数的文本"), SerializeField]
+    private Text levelText;
+
+    [Tooltip("显示波数信息的文本"), SerializeField]
+    private Text waveText;
 
     [Tooltip("左下角车厢信息显示管理，每单元代表一个车厢（包括车厢图像及生命值显示）"), SerializeField]
     private Transform[] unitInfoIcons;
@@ -28,14 +34,32 @@ public class UIManager : MonoBehaviour
     [Tooltip("结束文本显示面板"), SerializeField]
     private EndPanel endPanel;
 
+    [Tooltip("游戏最终胜利的文本"), SerializeField]
+    private Text gameEndText;
+
     [Header("开始文本显示参数")]
     [Tooltip("开始文本每次显示多久"), SerializeField, Range(0f, 1f)]
     private float startHintTextShowTime = 1f;
+    [Tooltip("开始文本每次切换时闪烁白色的时间"), SerializeField, Range(0f, 0.5f)]
+    private float startHintTextFlashTime = 0.05f;
+    [Tooltip("开始文本除去闪烁时间显示多久")]
+    private float startHintTextRealShowTime;
     [Tooltip("开始文本每次隐藏多久"), SerializeField, Range(0f, 0.5f)]
     private float startHintTextHideTime = 0.3f;
 
+    private void OnValidate()
+    {
+        if(startHintTextFlashTime > startHintTextShowTime)
+        {
+            startHintTextFlashTime = startHintTextShowTime;
+        }
+
+        startHintTextRealShowTime = startHintTextShowTime - startHintTextFlashTime;
+    }
+
     private void Awake()
     {
+        startHintTextRealShowTime = startHintTextShowTime - startHintTextFlashTime;
         instance = this;
     }
 
@@ -49,9 +73,11 @@ public class UIManager : MonoBehaviour
         RoundStart();
     }
 
-    public void RoundStart()
+    private void RoundStart()
     {
         startHintText.gameObject.SetActive(false);
+        levelText.gameObject.SetActive(false);
+        waveText.gameObject.SetActive(false);
 
         int trainUnitCount = train.unitCount;
 
@@ -63,7 +89,7 @@ public class UIManager : MonoBehaviour
             Image image = unitInfoIcons[i].GetComponentsInChildren<Image>()[1];
             image.color = train.unitColors[i];
             Text text = unitInfoIcons[i].GetComponentInChildren<Text>();
-            text.text = train.unitMaxHealth.ToString();
+            text.text = train.unitMaxHealths[i].ToString();
         }
 
         //根据车厢数量决定左下角车厢信息板块数量
@@ -93,13 +119,27 @@ public class UIManager : MonoBehaviour
     /// <returns></returns>
     private IEnumerator ShowStartHint()
     {
-        yield return new WaitForSeconds(startHintTextShowTime);
+        //yield return new WaitForSeconds(startHintTextShowTime);
 
         for(int i = 3; i >= 1; i--)
         {
             startHintText.text = i.ToString();
             startHintText.gameObject.SetActive(true);
-            yield return new WaitForSeconds(startHintTextShowTime);
+            if (i == 3)
+            {
+                yield return new WaitForSeconds(startHintTextShowTime);
+            }
+            else
+            {
+                startHintText.color = Color.white;
+                int originalSize = startHintText.fontSize;
+                startHintText.fontSize = originalSize + 16;
+                yield return TextSizeShrinkOverTime(startHintTextFlashTime, originalSize + 16, originalSize);
+                //yield return new WaitForSeconds(startHintTextFlashTime);
+                startHintText.color = Color.black;
+                startHintText.fontSize = originalSize;
+                yield return new WaitForSeconds(startHintTextRealShowTime);
+            }
 
             startHintText.gameObject.SetActive(false);
             if(i != 1)
@@ -107,27 +147,28 @@ public class UIManager : MonoBehaviour
                 yield return new WaitForSeconds(startHintTextHideTime);
             }
         }
-        //startHintText.text = "3";
-        //startHintText.gameObject.SetActive(true);
-        //yield return new WaitForSeconds(startHintTextShowTime);
-
-        //startHintText.gameObject.SetActive(false);
-        //yield return new WaitForSeconds(startHintTextHideTime);
-
-        //startHintText.text = "2";
-        //startHintText.gameObject.SetActive(true);
-        //yield return new WaitForSeconds(startHintTextShowTime);
-
-        //startHintText.gameObject.SetActive(false);
-        //yield return new WaitForSeconds(startHintTextHideTime);
-
-        //startHintText.text = "1";
-        //startHintText.gameObject.SetActive(true);
-        //yield return new WaitForSeconds(startHintTextShowTime);
-
-        //startHintText.gameObject.SetActive(false);
 
         GameManager.roundStart = true;
+
+        levelText.text = "关卡 : " + GameManager.currentLevel;
+        levelText.gameObject.SetActive(true);
+        waveText.gameObject.SetActive(true);
+    }
+
+    /// <summary>
+    /// 321的倒计时文本需要由大到小的变化过程
+    /// </summary>
+    /// <param name="time">从大变小要多久</param>
+    /// <param name="beginSize">从多大开始变</param>
+    /// <param name="endSize">变回原来的字号</param>
+    /// <returns></returns>
+    private IEnumerator TextSizeShrinkOverTime(float time, int beginSize, int endSize)
+    {
+        for(float t = Time.deltaTime / time; t <= 1; t+= Time.deltaTime/time)
+        {
+            startHintText.fontSize = (int)Mathf.Lerp(beginSize, endSize, t);
+            yield return null;
+        }
     }
 
     /// <summary>
@@ -141,6 +182,17 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 调整波数显示
+    /// </summary>
+    /// <param name="currentWave">当前波数</param>
+    /// <param name="totalWave">总波数</param>
+    public void SetWaveText(int currentWave, int totalWave)
+    {
+        currentWave++;
+        waveText.text = "波数 : " + currentWave + " / " + totalWave;
+    }
+
+    /// <summary>
     /// 游戏结束，显示信息
     /// </summary>
     /// <param name="success"></param>
@@ -148,5 +200,11 @@ public class UIManager : MonoBehaviour
     {
         endPanel.gameObject.SetActive(true);
         endPanel.ShowEndText(success);
+    }
+
+    public void ShowGameEndText()
+    {
+        endPanel.gameObject.SetActive(true);
+        gameEndText.gameObject.SetActive(true);
     }
 }

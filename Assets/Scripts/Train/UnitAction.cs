@@ -2,12 +2,15 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 负责车厢的攻击
+/// </summary>
 public class UnitAction : MonoBehaviour
 {
     [Tooltip("车厢攻击的目标，默认没有")]
     private Transform attackTarget = null;
 
-    [Tooltip("用来发射的子弹预制体"), SerializeField]
+    [Tooltip("用来发射的子弹预制体")]
     private Bullet bulletPrefab;
 
     [Tooltip("攻击范围，采用trigger检测")]
@@ -15,16 +18,21 @@ public class UnitAction : MonoBehaviour
     [Tooltip("攻击范围内的所有敌人")]
     private List<Enemy> accessibleEnemies;
 
-    [Tooltip("车厢攻击的间隔"), SerializeField, Range(0.1f, 2f)]
+    [Tooltip("车厢攻击的间隔"), Range(0.1f, 2f)]
     private float attackInterval = 1f;
     [Tooltip("车厢攻击计时器")]
     private float attackTimer = 0f;
 
-    [Tooltip("攻击范围大小，在面板调整并应用于实际运行"), SerializeField, Range(5f, 20f)]
+    [Tooltip("攻击范围大小，在面板调整并应用于实际运行"), Range(5f, 20f)]
     private float attackRange = 10f;
 
     private void Start()
     {
+        Unit unit = GetComponent<Unit>();
+        bulletPrefab = unit.GetBulletPrefab();
+        attackInterval = unit.GetAttackInterval();
+        attackRange = unit.GetAttackRange();
+
         //赋值攻击范围
         attackDetector = GetComponent<SphereCollider>();
         attackDetector.radius = attackRange;
@@ -101,7 +109,7 @@ public class UnitAction : MonoBehaviour
         {
             Enemy enemy = other.GetComponent<Enemy>();
             accessibleEnemies.Add(enemy);
-            enemy.SetOnDeath(RemoveEnemy);
+            enemy.AddOnDeath(RemoveEnemy);
         }
     }
 
