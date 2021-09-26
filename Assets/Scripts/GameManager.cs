@@ -132,10 +132,6 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if(toIndex > fromIndex)
-        {
-            toIndex--;
-        }
         UnitType type = train[fromIndex];
         train.RemoveAt(fromIndex);
         train.Insert(toIndex, type);
